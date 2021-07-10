@@ -40,11 +40,14 @@ p, a, footer{
     font-size: 20px;
 }
 
+
+
 input, textarea, .p-heights {
     box-sizing: border-box;
     border: none;
     width: 100%;
     color: var(--fg);
+    padding: 5px;
     min-height: 2em;
     line-height: 1.5em;
     margin: 0;
@@ -74,7 +77,7 @@ textarea {
 }
 
 .p-heights.endline {
-    padding-bottom: 1.5em;
+    padding-bottom: 1.65em;
 }
 
 a {
@@ -88,7 +91,7 @@ a:hover{
 }
 
 button {
-    margin: -20px 10px 10px 10px;
+    margin-top: 15px;
     text-decoration: none;
     width: fit-content;
     border: 0.1px solid grey;
@@ -96,9 +99,6 @@ button {
     font-family: 'Viaoda Libre', cursive;
     box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
     font-size: 1.5em;
-    position: absolute;
-    bottom: 30px;
-    transition: top ease 1s;
 }
 
 button:hover {
