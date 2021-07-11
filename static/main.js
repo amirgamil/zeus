@@ -13,7 +13,6 @@ class Store extends CollectionStoreOf(UnitOfList) {
                    } else {
                         this.setStore([]);                        
                    }
-                   //return key and the rule as an object to allow caller to assign appropriately
                    //when initializing our list
                    return {key: response.key, rule: response.rule};
                })
@@ -224,6 +223,14 @@ class HomePage extends Component {
                 margin: 0 auto;
                 border: 1px solid black;
             }
+
+            .title {
+                flex-grow: 1;
+            }
+
+            .about {
+                flex-grow: 0.05;
+            }
         `
     }
 
@@ -234,17 +241,19 @@ class HomePage extends Component {
 
     create({text, password, id}) {
         return html`<div class="colWrapper">
-             <h1>Curate a list!</h1>
+             <div class="rowWrapper">
+                <h1 class="title">Zeus</h1>
+                <a class = "about" href="/about">About</a>
+               <button class="addListButton" onclick=${this.createList}>+</button>
+             </div>
              <form>
                 <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or title of the page"/>
                 <input oninput=${this.handlePassword} value=${password} placeholder="Enter password" type="password" autocomplete="current-password"/>
              </form>
-             <p>Enter the markdown copy of the desired list</p>
              <div class="markdown">
-                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define the item of your list" value=${text}></textarea>
-                <pre class="p-heights ${text.endsWith('\n') ? 'endline' : ''}">${text}</pre>
+                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define what an item in your list looks like in markdown. For example: \n## Quote\nMessage\n[Link]()" value=${text}></textarea>
+                <pre class="p-heights">${text}</pre>
              </div>
-            <button onclick=${this.createList}>Create</button>
             ${this.errorOccurred !== "" ? html`<div class = "modal"> 
                     <div class="modal-content">
                         <p>${this.errorOccurred}</p>
@@ -276,6 +285,14 @@ class App extends Component {
     }
 
     create() {
+        const hour = new Date().getHours();
+		if (hour > 19 || hour < 7) {
+			document.body.classList.add('dark');
+			document.documentElement.style.color = '#222';
+		} else {
+			document.body.classList.remove('dark');
+			document.documentElement.style.color = '#fafafa';
+		}
         return html`<main>
             ${() => {
                 switch (this.route) {

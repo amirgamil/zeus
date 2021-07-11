@@ -2,17 +2,33 @@ html, body {
     margin: 0;
     min-height: 100vh;
     background: rgb(0,0,3);
+    --fgHover: rgb(222,222,222, 0.1);
     --fg: #222;
-    --bg: #fafafa;
+    --bg: #eeecec;
+    font-family: 'Fira Sans', sans-serif;
 
     background: var(--bg);
     color: var(--fg);
 }
+
+body.dark {
+    --fg: #fafafa;
+    --fgHover: rgb(250,250,250, 0.1);
+    --bg: #222;
+}
+
 main {
     max-width: 800px;
     margin: 0 auto;
     width: calc(100% - 2em);
 }
+
+.rowWrapper {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
 .colWrapper {
     width: 100%;
     margin: 0 auto;
@@ -31,35 +47,38 @@ footer {
     text-align: center; 
 }
 
-p, footer{
+footer{
+    font-size: 1em;
     color: var(--fg);
 }
 
-p, a, footer{
-    font-family: 'Viaoda Libre', cursive;
-    font-size: 20px;
+textarea, .p-heights {
+    padding: 5px 5px 6em 5px;
 }
 
-
+input:focus, textarea:focus, .p-heights:focus{
+    background: var(--fgHover);
+}
 
 input, textarea, .p-heights {
     box-sizing: border-box;
     border: none;
+    margin: 10px 0 10px 0;
+    border-radius: 5px;
     width: 100%;
     color: var(--fg);
-    padding: 5px;
+    font-size: 1em;
     min-height: 2em;
     line-height: 1.5em;
-    margin: 0;
-    font-family:'Times New Roman', Times, serif; 
+    font-family: 'Inconsolata', monospace;
     background: transparent;
-    outline: 0.2px solid black;
+    outline: none;
     word-wrap: break-word;
     white-space: pre-wrap;
 }
 
 input {
-    margin: 20px 0 20px 0;
+    padding: 5px;
 }
 
 textarea {
@@ -88,30 +107,54 @@ textarea {
 
 a {
     text-decoration: none;
-    color: white;
-    color: rgb(249, 196, 194);
-}
-
-a:hover{
+    color: var(--fg);
     text-decoration: underline;
 }
 
+a:hover{
+    cursor: grab;
+}
+
 button {
-    margin-top: 15px;
+    background: none;
+    border: none;
+    border-radius: 5px;
     text-decoration: none;
     width: fit-content;
-    border: 0.1px solid grey;
-    color: black;
-    font-family: 'Viaoda Libre', cursive;
-    box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.1);
+    color: var(--fg); 
     font-size: 1.5em;
 }
 
-button:hover {
-    bottom: 35px;
+button:hover, button:focus {
     cursor: grab;
-    background:rgb(225,150,147);
-    color: white;
+    background: var(--fgHover);
+}
+
+.addListButton::after {
+    position: absolute;
+    content: 'Create a list';
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 5px;
+    background: var(--fgHover);
+    border-radius: 6px;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+    opacity: 0;
+    transform: translate(-90%, 35px);
+    transition: opacity .2s, transform .2s;
+    transition-delay: 0s;
+}
+
+.addListButton:hover::after {
+    transition-delay: 0.5s;
+    opacity: 1 !important;
+}
+
+
+::selection, ::-moz-selection  {
+    color: var(--fg) !important;
+    background: blue;
 }
 
 
