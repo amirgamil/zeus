@@ -38,7 +38,7 @@ type errorResponse struct {
 }
 
 //global cache representing our database
-var cache map[string]List
+var cache map[string]*List
 
 func check(e error) {
 	if e != nil {
@@ -58,7 +58,7 @@ func ensureDataExists() {
 		f.Close()
 		//write empty key "" to file to prevent errors with home page and initially populate
 		//database
-		writeToFile("", "")
+		addNewList("", "")
 	} else {
 		defer jsonFile.Close()
 	}
@@ -75,10 +75,11 @@ func index(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, indexFile)
 }
 
-func writeToFile(key string, rule string) {
-	cache = make(map[string]List)
-	//TODO: go bacj and check whether we can do it in one open file:
+//load the database into the cache
+func loadCacheFromDiskToMemory() {
+	//TODO: go back and check whether we can do it in one open file:
 	//w. os.O_RDWR|os.O_CREATE|os.O_TRUNC
+	cache = make(map[string]*List)
 	gobFile, err := os.OpenFile(dbPath, os.O_RDONLY|os.O_CREATE, 0755)
 	check(err)
 	//use encoder/decoder to write and read from our gob file since this
@@ -86,25 +87,30 @@ func writeToFile(key string, rule string) {
 	//stores the entire file in memory when performing the operations
 	//rather than loading line by line
 	err = gob.NewDecoder(gobFile).Decode(&cache)
-	fmt.Println(cache)
-	//close file
 	gobFile.Close()
-	//since we want to overwrite the file, we can't just open the file once with os.RDWR
-	//since that appends by default
-	gobFile, err = os.OpenFile(dbPath, os.O_WRONLY|os.O_CREATE, 0755)
+}
+
+//writes the current cache in memory to disk i.e. saves the database for persistent storage
+func writeCacheToDisk() {
+	gobFile, err := os.OpenFile(dbPath, os.O_WRONLY|os.O_CREATE, 0755)
 	defer gobFile.Close()
 	//error may occur when reading from an empty file for the first time
 	if err != nil {
 		check(err)
 	}
-	//create new list
-	newList := List{Key: key, Data: make([]string, 0), Rule: rule}
 	//TODO: eventually change to file rewrite every little bit of time instead of after
 	//every request
-	//TODO: eventually hash the key first and map key to hashed string
-	cache[key] = newList
 	err = gob.NewEncoder(gobFile).Encode(cache)
 	check(err)
+}
+
+func addNewList(key string, rule string) {
+	//create new list
+	newList := List{Key: key, Data: make([]string, 0), Rule: rule}
+	//TODO: eventually hash the key first and map key to hashed string
+	cache[key] = &newList
+	fmt.Println(cache[key])
+	writeCacheToDisk()
 }
 
 func createList(w http.ResponseWriter, r *http.Request) {
@@ -121,8 +127,16 @@ func createList(w http.ResponseWriter, r *http.Request) {
 	} else if keyExists(listKey) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
-		writeToFile(listKey, request.Rule)
+		addNewList(listKey, request.Rule)
 	}
+}
+
+func getMarkdownFromString(source string) string {
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(source), &buf); err != nil {
+		panic(err)
+	}
+	return buf.String()
 }
 
 func parseMarkdown(w http.ResponseWriter, r *http.Request) {
@@ -130,18 +144,21 @@ func parseMarkdown(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&source)
 	check(err)
 	//convert string to markdown
-	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(source), &buf); err != nil {
-		panic(err)
-	}
-	json.NewEncoder(w).Encode(buf.String())
+	markDown := getMarkdownFromString(source)
+	json.NewEncoder(w).Encode(markDown)
 }
 
 func getList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listKey := vars["listName"]
+	fmt.Println(cache[listKey])
 	//TODO: map to hash
 	json.NewEncoder(w).Encode(cache[listKey])
+}
+
+func (list *List) addItemToList(item string) {
+	fmt.Println(list.Data)
+	list.Data = append(list.Data, item)
 }
 
 func updateList(w http.ResponseWriter, r *http.Request) {
@@ -153,10 +170,15 @@ func updateList(w http.ResponseWriter, r *http.Request) {
 		var data string
 		err := json.NewDecoder(r.Body).Decode(&data)
 		check(err)
+		list := cache[listKey]
 		//update data in our cache
-		cache[listKey].Data = append(cache[listKey].Data, data)
-		//return new list of data elements to render
-		json.NewEncoder(w).Encode(cache[listKey].Data)
+		newListItem := getMarkdownFromString(data)
+		list.addItemToList(newListItem)
+		fmt.Println(list.Data)
+		writeCacheToDisk()
+		//return new appended data - client will add to the store
+		//prevents us having to constantly reload the entire list, faster/more efficient this way
+		json.NewEncoder(w).Encode(newListItem)
 	}
 }
 
@@ -175,6 +197,8 @@ func keyExists(key string) bool {
 
 func Start() {
 	ensureDataExists()
+	//TODO: eventually change to load certain parts in memory, no need for the entire cache
+	loadCacheFromDiskToMemory()
 	r := mux.NewRouter()
 
 	srv := &http.Server{
@@ -189,7 +213,8 @@ func Start() {
 	r.Methods("POST").Path("/updateList/{listName}").HandlerFunc(updateList)
 	r.Methods("POST").Path("/data").HandlerFunc(parseMarkdown)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	r.HandleFunc("/", index)
+	//match all other routes here, routing will be handled on the client side
+	r.PathPrefix("/").HandlerFunc(index)
 	log.Printf("Server listening on %s\n", srv.Addr)
 	log.Fatal(srv.ListenAndServe())
 

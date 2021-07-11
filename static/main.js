@@ -8,7 +8,14 @@ class Store extends CollectionStoreOf(UnitOfList) {
         return fetch("/getList/" + listKey)
                .then(data => data.json())
                .then(response => {
-                   this.setStore(response.data.map(element => new UnitList(element)));
+                   if (response.data) {
+                       this.setStore(response.data.map(element => new UnitList(element)));
+                   } else {
+                        this.setStore([]);                        
+                   }
+                   //return key and the rule as an object to allow caller to assign appropriately
+                   //when initializing our list
+                   return {key: response.key, rule: response.rule};
                })
                .catch(ex => {
                    console.log("Error fetching list data: ", ex);
@@ -33,22 +40,95 @@ class Store extends CollectionStoreOf(UnitOfList) {
 
 
 class UnitList extends Component {
+    init(data, removeCallBack) {
+        this.data = data;
+        this.removeCallBack = removeCallBack;
+    }
 
+    create(data) {
+        return html`<p>${data}</p>`
+    }
 }
 
 class CreatedList extends ListOf(UnitList) {
-    init() {
+    // create() {
+    //     return html`${this.rule ? html`<div>
+    //         ${this.nodes}
+    //     </div>` : html`<p>Loading...</p>`}`
+    // }
+}
 
+function getErrorMessageFromCode(code) {
+    switch (code) {
+        case 401:
+            return "Uh oh, what do we have here, enter the right password or be gone!"
+            break
+        case 405: 
+            return "Uh oh, this ID already exists, try a different one?" 
+            break
+        default:
+            return "Uh oh, an unexpected error occurred"
+    }
+}
+
+//higher order component for representing a dynamic list and data source
+class ListView extends Component {
+    init(route) {
+        this.dataSource = new Store();
+        this.list = new CreatedList(this.dataSource)
+        this.newItem = "";
+        //TODO: handle error occurred modal? any way to do this without repeating code?
+        this.errorOccurred = "";
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.addListItem = this.addListItem.bind(this);
+        this.dataSource.fetch(route)
+                        .then(data => {
+                            const {key, rule} = data;
+                            this.key = key;
+                            this.newItem = rule;
+                            this.bind(this.dataSource);
+                        });
+    }
+
+    addListItem() {
+        fetch("/updateList/" + this.key, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(this.newItem)
+        }).then(response => {
+            if (response.ok) {
+                return response.json()
+            } else {
+                return Promise.reject(response);
+            }
+        }).then(data => {
+            console.log(data);
+            //add new element to our store once guaranteed it has been updated in the database
+            this.dataSource.add(data);
+          }).catch(ex => {
+            this.errorOccurred = getErrorMessageFromCode(ex.status);
+            console.log("Error adding new item: ", this.errorOccurred, " ", ex);
+            this.render();
+          })
+    }
+
+    handleKeyDown(evt) {
+        this.newItem = evt.target.value;
+        this.render();
     }
 
     create() {
-        return html`<div>
-            ${this.nodes}
-            <div class="markdown">
-                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define the item of your list" value=${text}></textarea>
-                <pre class="p-heights ${text.endsWith('\n') ? 'endline' : ''}">${text}</pre>
-            </div> 
-        </div>`
+        return html`<div class="colWrapper">
+            ${this.list.node}
+            ${this.newItem ? html`<div class="markdown">
+                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define the item of your list" value=${this.newItem}></textarea>
+                <pre class="p-heights ${this.newItem.endsWith('\n') ? 'endline' : ''}">${this.newItem}</pre>
+            </div> ` : html`<p>Loading</p>`}
+            <button onclick=${this.addListItem}>+</button>
+        </div>
+        `
     }
 }
 
@@ -57,8 +137,7 @@ class Source extends Atom {
 }
 
 class HomePage extends Component {
-    init(router) {
-        this.router = router;
+    init() {
         this.data = new Source({text: "", password: "", id: ""});
         this.errorOccurred = "";
         this.handleInputDown = this.handleInputDown.bind(this);
@@ -108,38 +187,23 @@ class HomePage extends Component {
                 password: this.data.get("password")
             })
         }).then(res => {
-            console.log(res);
             if (res.ok) {
-                return res.json();
+                //change the location of the window as opposed to just navigating with the 
+                //router since we need the parent component to re-render not just this one
+                window.location = "/" + this.data.get("id");
             } else {
                 return Promise.reject(res);
             }
-        }).then(data => {
-            //do something with the data
-            //navigate to the hash now that it has been created
-            this.render();
-        }).catch(e => {
-            switch (e.status) {
-                case 401:
-                    this.errorOccurred = "Uh oh, what do we have here, enter the right password or be gone!"
-                    break
-                case 405: 
-                    this.errorOccurred = "Uh oh, this ID already exists, try a different one?" 
-                    break
-                default:
-                    this.errorOccurred = "Uh oh, an unexpected error occurred"
-            }
+        })
+        .catch(e => {
+            this.errorOccurred = getErrorMessageFromCode(e.status);
             this.render();
         })
     }
 
     styles() {
         return css`
-            .markdown {
-                width: 100%;
-                position: relative;
-                display: flex;
-            } 
+             
             .modal {
                 position: fixed;
                 z-index: 5;
@@ -169,7 +233,7 @@ class HomePage extends Component {
     }
 
     create({text, password, id}) {
-        return html`<div class="home">
+        return html`<div class="colWrapper">
              <h1>Curate a list!</h1>
              <form>
                 <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or title of the page"/>
@@ -194,20 +258,19 @@ class App extends Component {
     init() {
         this.list = null;
         this.router = new Router();
-        this.home = new HomePage(this.router);
         this.route = "/"
         this.router.on({
             route: "/:list", 
             handler: (route) => {
                 this.route = route;
-                this.dataSource = new Store();
-                this.list = new CreatedList(this.dataSource);
+                this.listView = new ListView(route);
         }});
 
         this.router.on({
             route: "/",
             handler: () => {
                 this.route = "/";
+                this.home = new HomePage();
             }
         })
     }
@@ -217,10 +280,10 @@ class App extends Component {
             ${() => {
                 switch (this.route) {
                     case "/":
-                        return this.home.node
+                        return this.home.node;
                     default: 
                         //we have a list
-                        return this.list.node
+                        return this.listView.node;
 
                 }
             }}

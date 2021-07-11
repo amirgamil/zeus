@@ -13,7 +13,7 @@ main {
     margin: 0 auto;
     width: calc(100% - 2em);
 }
-.home {
+.colWrapper {
     width: 100%;
     margin: 0 auto;
     display: flex;
@@ -78,6 +78,12 @@ textarea {
 
 .p-heights.endline {
     padding-bottom: 1.65em;
+}
+
+.markdown {
+    width: 100%;
+    position: relative;
+    display: flex;
 }
 
 a {
