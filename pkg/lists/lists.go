@@ -142,16 +142,19 @@ func getMarkdownFromString(source string) string {
 func parseMarkdown(w http.ResponseWriter, r *http.Request) {
 	var source string
 	err := json.NewDecoder(r.Body).Decode(&source)
-	check(err)
-	//convert string to markdown
-	markDown := getMarkdownFromString(source)
-	json.NewEncoder(w).Encode(markDown)
+	if err != nil {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	} else {
+		//convert string to markdown
+		markDown := getMarkdownFromString(source)
+		json.NewEncoder(w).Encode(markDown)
+	}
 }
 
 func getList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listKey := vars["listName"]
-	fmt.Println(cache[listKey])
+	if cache[listKey].
 	//TODO: map to hash
 	json.NewEncoder(w).Encode(cache[listKey])
 }

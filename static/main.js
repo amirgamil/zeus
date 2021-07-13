@@ -30,21 +30,6 @@ class Store extends CollectionStoreOf(UnitOfList) {
                    console.log("Error fetching list data: ", ex);
                })
     }
-
-    save(newItem) {
-        return fetch("/updateList/" + listKey, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newItem)
-        }).then(data => data.json())
-           .then(response => {
-                if (!response.ok) Promise.reject(response);
-           }).catch(ex => {
-                //TODO: do stuff
-           })
-    }
 }
 
 
@@ -59,8 +44,9 @@ class UnitList extends Component {
     }
 
     create(data) {
-        return html`<div class="unitList">
-                ${data}
+        //we don't sanitize data here since we will have sanitized it and cleaned it up
+        //before storing it in the database, so we can assume it's already safe
+        return html`<div class="unitList" innerHTML=${data}>
             </div>`
     }
 }
@@ -85,6 +71,66 @@ function getErrorMessageFromCode(code) {
             return "Uh oh, an unexpected error occurred"
     }
 }
+//global helper methods for rendering markdown that are reused across components
+//takes an optional boolean parameter that determines whether it should call render
+//or whether this is handled by the caller component
+function updateMarkdown(shouldNotRender) {
+    this.id = setInterval(() => {
+        if (this.shouldUpdatePreview) {
+            if (this.newItem) {
+                getMarkdownData(this.newItem)
+                    .then(data => {
+                        this.preview = data;
+                        this.shouldUpdatePreview = false;
+                        if (!shouldNotRender) this.render();
+                    }).catch(ex => {
+                        //set to false to avoid infinite loops
+                        this.shouldUpdatePreview = false;
+                        //if an exception happens, we still want to render the updated text of the text area
+                        this.render();
+                    })
+            } else {
+                this.preview = "";
+                this.render();
+            }
+        } else {
+            clearInterval(this.id);
+        }
+    }, 50);
+}
+
+const markdown = (preview) => {
+    //need to sanitize the data for safety to prevent cross-scripting attacks
+    //this will remove any dangerous HTML from the data before rendering it (or "executing it") 
+    //because we sanitize the content, we can safely use innerHTML since this 
+    //remove any malicious content that could pose cross-scripting attacks
+    return html`<div class="preview" innerHTML=${preview}> 
+    </div>`
+}
+
+function startFocus() {
+    this.shouldUpdatePreview = true;
+    this.startPreview();
+}
+
+function stopFocus() {
+    this.preview = null;
+    this.render();
+}
+
+//loads some necessary state required for previewing markdown
+function initalizeMarkdownPreviewVars() {
+    //id representing the timer from a set interval
+    this.timerID = 0;
+    //boolean variable to determine whether the markdown preview needs to be updated after a keydown event
+    this.shouldUpdatePreview = true;
+    this.preview = null;
+    this.val = "";
+    this.startPreview = updateMarkdown.bind(this);
+    this.stopFocus = stopFocus.bind(this);
+    this.startFocus = startFocus.bind(this);
+}
+
 
 //higher order component for representing a dynamic list and data source
 class ListView extends Component {
@@ -92,19 +138,13 @@ class ListView extends Component {
         this.dataSource = new Store();
         this.list = new CreatedList(this.dataSource)
         this.newItem = "";
-        //id representing the timer from a set interval
-        this.timerID = 0;
-        //boolean variable to determine whether the markdown preview needs to be updated after a keydown event
-        this.shouldUpdatePreview = true;
-        this.preview = null;
         //TODO: handle error occurred modal? any way to do this without repeating code?
         this.errorOccurred = "";
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.deleteLastItem = this.deleteLastItem.bind(this);
         this.addListItem = this.addListItem.bind(this);
-        this.startPreview = this.startPreview.bind(this);
-        this.stopFocus = this.stopFocus.bind(this);
-        this.startFocs = this.startFocs.bind(this);
+        this.initalizeMarkdownPreviewVars = initalizeMarkdownPreviewVars.bind(this);
+        this.initalizeMarkdownPreviewVars();
         this.dataSource.fetch(route)
                         .then(data => {
                             const {key, rule} = data;
@@ -168,9 +208,6 @@ class ListView extends Component {
                 margin-bottom: 30px;
             }
 
-            .preview {
-                opacity: 0.4;
-            }
         `
     }
 
@@ -191,52 +228,21 @@ class ListView extends Component {
             })
     }
 
-    startFocs() {
-        this.shouldUpdatePreview = true;
-        this.startPreview();
-    }
-
-    startPreview() {
-        this.id = setInterval(() => {
-            if (this.shouldUpdatePreview) {
-                getMarkdownData(this.newItem)
-                    .then(data => {
-                        this.preview = data;
-                        this.shouldUpdatePreview = false;
-                        this.render();
-                    }).catch(ex => {
-                        //note we don't want to change shouldUpdatePreview to keep trying to render the markdown
-                        //if an exception happens, we still want to render the updated text of the text area
-                        this.render();
-                    })
-            } else {
-                clearInterval(this.id);
-            }
-        }, 50);
-    }
-
-
-    stopFocus() {
-        this.preview = null;
-        this.render();
-    }
-
     create() {
+        //TODO: sanitize HTML before showing it in preview and sending it to the database
         return html`<div class="colWrapper">
-             <div class="rowWrapper">
+             <div class="rowWrapper navHeader">
                 <h1 class="title">${this.key}</h1>
                 <a href="/" class="about">Home</a>
                <button id = "add" class="icon" onclick=${this.addListItem}>+</button>
              </div>
             ${this.newItem ? html`<div class = "colWrapper">
                 <div class="markdown">
-                    <textarea onfocus=${this.startFocs} onblur=${this.stopFocus} oninput=${this.handleKeyDown} class="highlighted littlePadding" placeholder="Define the item of your list" value=${this.newItem}></textarea>
+                    <textarea onfocus=${this.startFocus} onblur=${this.stopFocus} oninput=${this.handleKeyDown} class="highlighted littlePadding" placeholder="Define the item of your list" value=${this.newItem}></textarea>
                     <pre class="p-heights highlighted littlePadding ${this.newItem.endsWith('\n') ? 'endline' : ''}">${this.newItem}</pre>
                 </div> 
             </div>` : html`<p>Loading</p>`}
-            <div class="preview"> 
-                ${this.preview}
-            </div>
+            ${markdown(this.preview)} 
             ${this.list.node}
             <button id = "delete" class = "delete icon" onclick=${this.deleteLastItem}>X</button>
         </div>
@@ -250,6 +256,7 @@ class Source extends Atom {
 
 //returns a promise to get the rendered markdown of the content defined in the list component
 function getMarkdownData(data) {
+    if (!data) return Promise.reject(data);
     return fetch("/data", {
         method: 'POST',
         mode: 'no-cors',
@@ -266,11 +273,25 @@ function getMarkdownData(data) {
 class HomePage extends Component {
     init(router) {
         this.router = router;
-        this.about = this.router.currentPath === "/about";
+        this.text = "";
+        this.password = "";
+        this.id = "";
         this.data = new Source({text: "", password: "", id: ""});
+        this.initalizeMarkdownPreviewVars = initalizeMarkdownPreviewVars.bind(this);
+        this.initalizeMarkdownPreviewVars();
         this.errorOccurred = "";
         this.handleInputDown = this.handleInputDown.bind(this);
-        this.handleKeyDown = (evt) => this.handleInputDown("text", evt);
+        this.handleKeyDown = (evt) => { 
+            this.handleInputDown("text", evt)
+            this.shouldUpdatePreview = true;
+            //TODO: if this is slow on mobile, change implementation to only one render
+            //markdown rendering uses a state variable this.newItem, however this component uses atomic data
+            //so we need to set it before rendering the markdown
+            this.newItem = evt.target.value;
+            //since we bind the atomic data, this will emit an event to re-render
+            //so we pass in true to `shouldNotRender` to avoid calling render twice for efficiency/speed
+            this.startPreview(); 
+        };
         this.handleIDInput = (evt) => this.handleInputDown("id", evt);
         this.handlePassword = (evt) => this.handleInputDown("password", evt);
         this.createList = this.createList.bind(this);
@@ -336,7 +357,7 @@ class HomePage extends Component {
                 justify-content: center;
             }
 
-            .modal-content {
+            .modalContent {
                 width: 300px;
                 padding: 20px !important;
                 margin: 0 auto;
@@ -348,6 +369,7 @@ class HomePage extends Component {
             .icon::after {
                 content: 'Create a list';
             }
+
         `
     }
 
@@ -369,33 +391,36 @@ class HomePage extends Component {
     create({text, password, id}) {
         const textPadding = text ? 'littlePadding' : 'extraPadding';
         return html`<div class="colWrapper">
-             <div class="rowWrapper">
+             <div class="rowWrapper navHeader">
                 <h1 class="title"><a class = "nav" href="/">Zeus</a></h1>
                 <a class = "link about" onclick=${this.loadAbout}>About</a>
                <button class="icon" onclick=${this.createList}>+</button>
              </div>
-             ${this.about ? html`<div class="colWrapper">    
-                <h2>What is this?</h2>            
-                <p>I (Amir) keep a lot of lists. Most of them are
+             ${this.router.currentPath === "/about" ? html`<div class="colWrapper">    
+                <h2 class="spaceTopBottom">What is this?</h2>            
+                <p class="spaceTopBottom">I (Amir) keep a lot of lists. Most of them are
                     scattered, inaccessible, slow, and hard to share. Zeus is an attempt at solving these problems 
                     by giving me an easy way to create, update, and store lists. 
                 </p>
-                <h2>Why is this called Zeus?</h2>
-                <p>It is an attempt at creating order from chaos. Hella melodramatic, I know.</p>
-                <h2>Why can I not delete items?</h2>
-                <p>When I collect lists, I normally don't delete previous items I've collected. The focus is to 
+                <h2 class="spaceTopBottom">Why is this called Zeus?</h2>
+                <p class="spaceTopBottom">It is an attempt at creating order from chaos. Hella melodramatic, I know.</p>
+                <h2 class="spaceTopBottom">Why can I not delete items?</h2>
+                <p class="spaceTopBottom">When I collect lists, I normally don't delete previous items I've collected. The focus is to 
                     capture anything interesting I come across and record it, which is why it's designed to be append only.
                     I have a delete last in case I screw up adding an item, but otherwise this is a feature not a bug.
                 </p>
-             </div>`: html`<div>
-                <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or URL of the page"/>
-                <input oninput=${this.handlePassword} value=${password} placeholder="Enter password" type="password" autocomplete="current-password"/>
+             </div>`: html`<div class="colWrapper">
+                <form>
+                    <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or URL of the page"/>
+                    <input oninput=${this.handlePassword} value=${password} placeholder="Enter password" type="password" autocomplete="current-password"/>
+                </form>
              <div class="markdown">
-                <textarea oninput=${this.handleKeyDown} class=${textPadding} placeholder="Define what an item in your list looks like in markdown. For example: \n## Quote\nMessage\n[Link]()" value=${text}></textarea>
-                <pre class="p-heights ${textPadding}">${text}</pre>
+                <textarea onfocus=${this.startFocus} onblur=${this.stopFocus} oninput=${this.handleKeyDown} class=${textPadding} placeholder="Define what an item in your list looks like in markdown. For example: \n## Quote\nMessage\n[Link]()" value=${text}></textarea>
+                <pre class="p-heights ${textPadding} ${text.endsWith("\n") ? 'endline' : ''}">${text}</pre>
              </div>
+            ${markdown(this.preview)}
             ${this.errorOccurred !== "" ? html`<div class = "modal"> 
-                    <div class="modal-content">
+                    <div class="modalContent">
                         <p>${this.errorOccurred}</p>
                         <button style="align-self: center" onclick=${this.closeModal}>x</button>
                     </div>
@@ -414,6 +439,7 @@ class App extends Component {
             handler: (route) => {
                 this.route = route;
                 this.home = new HomePage(this.router);
+                this.render();
             }
         })
 
@@ -422,6 +448,7 @@ class App extends Component {
             handler: (route) => {
                 this.route = route;
                 this.listView = new ListView(route);
+                this.render();
         }});
     }
 

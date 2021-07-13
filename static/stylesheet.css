@@ -88,8 +88,22 @@ footer {
     padding: 5px 5px 6em 5px;
 }
 
+.preview {
+    opacity: 0.4;
+    margin: 0 0 0 5px;
+    padding: 0;
+}
+
 .littlePadding {
     padding: 5px;
+}
+
+.spaceTopBottom {
+    margin: 10px 0 10px 0;    
+}
+
+.navHeader {
+    margin: 20px 2px 10px 2px;
 }
 
 .highlighted {
@@ -215,4 +229,11 @@ a {
 
 .about {
     flex-grow: 0.05;
+}
+
+
+/*to make sure preview shows up similar to the textarea*/
+p, h1, h2, h3, h4 {
+    margin: 0;
+    padding: 0;
 }
