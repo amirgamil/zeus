@@ -182,10 +182,23 @@ func updateList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func deleteLastItem(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	listKey := vars["listName"]
+	list := cache[listKey]
+	if !keyExists(listKey) || !keyExists(listKey) || len(list.Data) == 0 {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	} else {
+		list.Data = list.Data[:len(list.Data)-1]
+		json.NewEncoder(w).Encode(list.Data)
+	}
+}
+
 func isValidPassword(password string) bool {
 	err := godotenv.Load()
 	check(err)
 	truePass := os.Getenv("PASSWORD")
+	fmt.Println(truePass, password)
 	return truePass == password
 }
 
@@ -211,6 +224,7 @@ func Start() {
 	r.Methods("POST").Path("/createList/{listName}").HandlerFunc(createList)
 	r.Methods("GET").Path("/getList/{listName}").HandlerFunc(getList)
 	r.Methods("POST").Path("/updateList/{listName}").HandlerFunc(updateList)
+	r.Methods("GET").Path("/deleteLastItem/{listName}").HandlerFunc(deleteLastItem)
 	r.Methods("POST").Path("/data").HandlerFunc(parseMarkdown)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	//match all other routes here, routing will be handled on the client side

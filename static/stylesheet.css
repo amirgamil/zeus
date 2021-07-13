@@ -2,14 +2,16 @@ html, body {
     margin: 0;
     min-height: 100vh;
     background: rgb(0,0,3);
-    --fgHover: rgb(222,222,222, 0.1);
+    --fgHover: rgb(32, 32, 32, 0.1);
     --fg: #222;
     --bg: #eeecec;
+    font-weight: 300;
     font-family: 'Fira Sans', sans-serif;
 
     background: var(--bg);
     color: var(--fg);
 }
+
 
 body.dark {
     --fg: #fafafa;
@@ -17,9 +19,16 @@ body.dark {
     --bg: #222;
 }
 
+.content {
+    flex: 1 0 auto;
+}
+
 main {
     max-width: 800px;
+    min-height: 100vh;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
     width: calc(100% - 2em);
 }
 
@@ -27,6 +36,31 @@ main {
     display: flex;
     justify-content: flex-start;
     align-items: center;
+}
+
+.title {
+    font-weight: 500;
+    flex-grow: 1;
+}
+
+ul {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.unitList {
+    margin: 10px 5px 10px 5px;
+    display: flex;
+    align-items: center;
+}
+
+.listData {
+    flex-grow: 1;
+}
+
+.close {
+    font-size: 1em;
 }
 
 .colWrapper {
@@ -37,23 +71,34 @@ main {
     justify-content: center;
 }
 
-
-
-footer {
-    left: 0;
-    bottom: 5px;
-    width: 100%;
-    position: absolute;
-    text-align: center; 
+h2 {
+    margin: 0;
 }
 
-footer{
+footer {
+    width: 100%;
+    flex-shrink: 0;
+    padding: 8px 2px 8px 2px;
+    text-align: center; 
     font-size: 1em;
     color: var(--fg);
 }
 
-textarea, .p-heights {
+.extraPadding {
     padding: 5px 5px 6em 5px;
+}
+
+.littlePadding {
+    padding: 5px;
+}
+
+.highlighted {
+    background: var(--fgHover);
+}
+
+
+.p-heights {
+    background-color: red;
 }
 
 input:focus, textarea:focus, .p-heights:focus{
@@ -105,13 +150,21 @@ textarea {
     display: flex;
 }
 
-a {
+.nav {
     text-decoration: none;
+    color: var(--fg);
+}
+
+.nav:hover {
+    text-decoration: underline;
+}
+
+.link {
     color: var(--fg);
     text-decoration: underline;
 }
 
-a:hover{
+.link:hover{
     cursor: grab;
 }
 
@@ -130,9 +183,8 @@ button:hover, button:focus {
     background: var(--fgHover);
 }
 
-.addListButton::after {
+.icon::after {
     position: absolute;
-    content: 'Create a list';
     pointer-events: none;
     white-space: nowrap;
     padding: 5px;
@@ -146,15 +198,21 @@ button:hover, button:focus {
     transition-delay: 0s;
 }
 
-.addListButton:hover::after {
+.icon:hover::after {
     transition-delay: 0.5s;
     opacity: 1 !important;
 }
 
+a {
+    text-decoration: underline;
+    color: var(--fg);
+}
 
 ::selection, ::-moz-selection  {
     color: var(--fg) !important;
     background: blue;
 }
 
-
+.about {
+    flex-grow: 0.05;
+}

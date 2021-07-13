@@ -1,3 +1,13 @@
+// only fire fn once it hasn't been called in delay ms
+const debounce = (fn, delay) => {
+    let to = null;
+    return (...args) => {
+        const bfn = () => fn(...args);
+        clearTimeout(to);
+        to = setTimeout(bfn, delay);
+    }
+}
+
 class UnitOfList extends Atom {
 
 }
@@ -9,7 +19,7 @@ class Store extends CollectionStoreOf(UnitOfList) {
                .then(data => data.json())
                .then(response => {
                    if (response.data) {
-                       this.setStore(response.data.map(element => new UnitList(element)));
+                       this.setStore(response.data.map(element => new UnitOfList(element)));
                    } else {
                         this.setStore([]);                        
                    }
@@ -44,17 +54,23 @@ class UnitList extends Component {
         this.removeCallBack = removeCallBack;
     }
 
+    removeItem() {
+        this.removeCallBack(this.data);
+    }
+
     create(data) {
-        return html`<p>${data}</p>`
+        return html`<div class="unitList">
+                ${data}
+            </div>`
     }
 }
 
 class CreatedList extends ListOf(UnitList) {
-    // create() {
-    //     return html`${this.rule ? html`<div>
-    //         ${this.nodes}
-    //     </div>` : html`<p>Loading...</p>`}`
-    // }
+    create() {
+        return html`<div class="colWrapper">
+            ${this.nodes}
+        </div>`;
+    }
 }
 
 function getErrorMessageFromCode(code) {
@@ -76,14 +92,24 @@ class ListView extends Component {
         this.dataSource = new Store();
         this.list = new CreatedList(this.dataSource)
         this.newItem = "";
+        //id representing the timer from a set interval
+        this.timerID = 0;
+        //boolean variable to determine whether the markdown preview needs to be updated after a keydown event
+        this.shouldUpdatePreview = true;
+        this.preview = null;
         //TODO: handle error occurred modal? any way to do this without repeating code?
         this.errorOccurred = "";
         this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.deleteLastItem = this.deleteLastItem.bind(this);
         this.addListItem = this.addListItem.bind(this);
+        this.startPreview = this.startPreview.bind(this);
+        this.stopFocus = this.stopFocus.bind(this);
+        this.startFocs = this.startFocs.bind(this);
         this.dataSource.fetch(route)
                         .then(data => {
                             const {key, rule} = data;
-                            this.key = key;
+                            //replace in - in title with spaces to look pretty
+                            this.key = key.replace("-", " ");
                             this.newItem = rule;
                             this.bind(this.dataSource);
                         });
@@ -103,7 +129,6 @@ class ListView extends Component {
                 return Promise.reject(response);
             }
         }).then(data => {
-            console.log(data);
             //add new element to our store once guaranteed it has been updated in the database
             this.dataSource.add(data);
           }).catch(ex => {
@@ -115,17 +140,105 @@ class ListView extends Component {
 
     handleKeyDown(evt) {
         this.newItem = evt.target.value;
+        this.shouldUpdatePreview = true;
+        //combine keydown render with markdown to keep the website fast
+        this.startPreview();
+    }
+
+    styles() {
+        return css`
+            .line {
+                width: calc(100% - 0.5em);
+                height: 2px;
+                background: var(--fg);
+                position: relative;
+            }
+
+            #add::after {
+                content: 'Add list item';
+            }
+
+            #delete::after {
+                content: 'Delete last';
+                transform: translate(-63%, 35px);
+            }
+
+            .delete {
+                align-self: center;
+                margin-bottom: 30px;
+            }
+
+            .preview {
+                opacity: 0.4;
+            }
+        `
+    }
+
+    deleteLastItem() {
+        fetch("/deleteLastItem/" + this.key)
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return Promise.reject(response);
+                } 
+            }).then(response => {
+                this.dataSource.setStore(response);
+            }).catch(ex => {
+                this.errorOccurred = getErrorMessageFromCode(ex.status);
+                console.log("Error adding new item: ", this.errorOccurred, " ", ex);
+                this.render();
+            })
+    }
+
+    startFocs() {
+        this.shouldUpdatePreview = true;
+        this.startPreview();
+    }
+
+    startPreview() {
+        this.id = setInterval(() => {
+            if (this.shouldUpdatePreview) {
+                getMarkdownData(this.newItem)
+                    .then(data => {
+                        this.preview = data;
+                        this.shouldUpdatePreview = false;
+                        this.render();
+                    }).catch(ex => {
+                        //note we don't want to change shouldUpdatePreview to keep trying to render the markdown
+                        //if an exception happens, we still want to render the updated text of the text area
+                        this.render();
+                    })
+            } else {
+                clearInterval(this.id);
+            }
+        }, 50);
+    }
+
+
+    stopFocus() {
+        this.preview = null;
         this.render();
     }
 
     create() {
         return html`<div class="colWrapper">
+             <div class="rowWrapper">
+                <h1 class="title">${this.key}</h1>
+                <a href="/" class="about">Home</a>
+               <button id = "add" class="icon" onclick=${this.addListItem}>+</button>
+             </div>
+            ${this.newItem ? html`<div class = "colWrapper">
+                <div class="markdown">
+                    <textarea onfocus=${this.startFocs} onblur=${this.stopFocus} oninput=${this.handleKeyDown} class="highlighted littlePadding" placeholder="Define the item of your list" value=${this.newItem}></textarea>
+                    <pre class="p-heights highlighted littlePadding ${this.newItem.endsWith('\n') ? 'endline' : ''}">${this.newItem}</pre>
+                </div> 
+            </div>` : html`<p>Loading</p>`}
+            <div class="preview"> 
+                ${this.preview}
+            </div>
             ${this.list.node}
-            ${this.newItem ? html`<div class="markdown">
-                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define the item of your list" value=${this.newItem}></textarea>
-                <pre class="p-heights ${this.newItem.endsWith('\n') ? 'endline' : ''}">${this.newItem}</pre>
-            </div> ` : html`<p>Loading</p>`}
-            <button onclick=${this.addListItem}>+</button>
+            <button id = "delete" class = "delete icon" onclick=${this.deleteLastItem}>X</button>
         </div>
         `
     }
@@ -135,8 +248,25 @@ class Source extends Atom {
 
 }
 
+//returns a promise to get the rendered markdown of the content defined in the list component
+function getMarkdownData(data) {
+    return fetch("/data", {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+    }).then(data => data.json())
+      .then(data => data).catch(ex => {
+          console.log("Error fetching markdown: ", ex);
+      }); 
+}
+
 class HomePage extends Component {
-    init() {
+    init(router) {
+        this.router = router;
+        this.about = this.router.currentPath === "/about";
         this.data = new Source({text: "", password: "", id: ""});
         this.errorOccurred = "";
         this.handleInputDown = this.handleInputDown.bind(this);
@@ -144,8 +274,10 @@ class HomePage extends Component {
         this.handleIDInput = (evt) => this.handleInputDown("id", evt);
         this.handlePassword = (evt) => this.handleInputDown("password", evt);
         this.createList = this.createList.bind(this);
-        this.getMarkdownData = this.getMarkdownData.bind(this);
         this.closeModal = this.closeModal.bind(this);
+        this.loadView = this.loadView.bind(this);
+        this.loadAbout = () => this.loadView(true);
+        this.loadHome = () => this.loadView(false);
         this.bind(this.data);
     }
 
@@ -154,25 +286,11 @@ class HomePage extends Component {
         this.data.update({[element]: evt.target.value});
     }
 
-    //returns a promise to get the rendered markdown of the content defined in the list component
-    getMarkdownData() {
-        return fetch("/data", {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(this.data.get("text"))
-        }).then(data => data.json())
-          .then(data => {
-          }).catch(ex => {
-              console.log("Error fetching markdown: ", ex);
-          }); 
-    }
 
     //main logic for creating a list    
     createList() {
-        this.getMarkdownData();
+        //don't do anything if we have an empty id
+        if (!this.data.get("id")) return;
         //show modal and do some intermediate steps
         //create key in database
         fetch("/createList/" + this.data.get("id"), {
@@ -187,9 +305,10 @@ class HomePage extends Component {
             })
         }).then(res => {
             if (res.ok) {
-                //change the location of the window as opposed to just navigating with the 
+                console.log(res);
+                //change the location of the window as opposed to just navigating ?ith the 
                 //router since we need the parent component to re-render not just this one
-                window.location = "/" + this.data.get("id");
+                // window.location = "/" + this.data.get("id");
             } else {
                 return Promise.reject(res);
             }
@@ -221,15 +340,13 @@ class HomePage extends Component {
                 width: 300px;
                 padding: 20px !important;
                 margin: 0 auto;
-                border: 1px solid black;
+                display: flex;
+                flex-direction: column;
+                border: 1px solid var(--fg);
             }
 
-            .title {
-                flex-grow: 1;
-            }
-
-            .about {
-                flex-grow: 0.05;
+            .icon::after {
+                content: 'Create a list';
             }
         `
     }
@@ -239,27 +356,50 @@ class HomePage extends Component {
         this.render();
     }
 
+    loadView(isAbout) {
+        this.about = isAbout;
+        if (isAbout) {
+            this.router.navigate("/about");
+        } else {
+           this.router.navigate("/"); 
+        }
+        this.render();
+    }
+
     create({text, password, id}) {
+        const textPadding = text ? 'littlePadding' : 'extraPadding';
         return html`<div class="colWrapper">
              <div class="rowWrapper">
-                <h1 class="title">Zeus</h1>
-                <a class = "about" href="/about">About</a>
-               <button class="addListButton" onclick=${this.createList}>+</button>
+                <h1 class="title"><a class = "nav" href="/">Zeus</a></h1>
+                <a class = "link about" onclick=${this.loadAbout}>About</a>
+               <button class="icon" onclick=${this.createList}>+</button>
              </div>
-             <form>
-                <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or title of the page"/>
+             ${this.about ? html`<div class="colWrapper">    
+                <h2>What is this?</h2>            
+                <p>I (Amir) keep a lot of lists. Most of them are
+                    scattered, inaccessible, slow, and hard to share. Zeus is an attempt at solving these problems 
+                    by giving me an easy way to create, update, and store lists. 
+                </p>
+                <h2>Why is this called Zeus?</h2>
+                <p>It is an attempt at creating order from chaos. Hella melodramatic, I know.</p>
+                <h2>Why can I not delete items?</h2>
+                <p>When I collect lists, I normally don't delete previous items I've collected. The focus is to 
+                    capture anything interesting I come across and record it, which is why it's designed to be append only.
+                    I have a delete last in case I screw up adding an item, but otherwise this is a feature not a bug.
+                </p>
+             </div>`: html`<div>
+                <input oninput=${this.handleIDInput} value=${id} placeholder="Enter the ID or URL of the page"/>
                 <input oninput=${this.handlePassword} value=${password} placeholder="Enter password" type="password" autocomplete="current-password"/>
-             </form>
              <div class="markdown">
-                <textarea oninput=${this.handleKeyDown} class="unit" placeholder="Define what an item in your list looks like in markdown. For example: \n## Quote\nMessage\n[Link]()" value=${text}></textarea>
-                <pre class="p-heights">${text}</pre>
+                <textarea oninput=${this.handleKeyDown} class=${textPadding} placeholder="Define what an item in your list looks like in markdown. For example: \n## Quote\nMessage\n[Link]()" value=${text}></textarea>
+                <pre class="p-heights ${textPadding}">${text}</pre>
              </div>
             ${this.errorOccurred !== "" ? html`<div class = "modal"> 
                     <div class="modal-content">
                         <p>${this.errorOccurred}</p>
-                        <button onclick=${this.closeModal}>Close</button>
+                        <button style="align-self: center" onclick=${this.closeModal}>x</button>
                     </div>
-                </div>` : null}
+                </div>` : null}</div>`}
          </div>`
     }
 }
@@ -268,20 +408,21 @@ class App extends Component {
         this.list = null;
         this.router = new Router();
         this.route = "/"
+
+        this.router.on({
+            route: ["/", "/about"],
+            handler: (route) => {
+                this.route = route;
+                this.home = new HomePage(this.router);
+            }
+        })
+
         this.router.on({
             route: "/:list", 
             handler: (route) => {
                 this.route = route;
                 this.listView = new ListView(route);
         }});
-
-        this.router.on({
-            route: "/",
-            handler: () => {
-                this.route = "/";
-                this.home = new HomePage();
-            }
-        })
     }
 
     create() {
@@ -294,17 +435,19 @@ class App extends Component {
 			document.documentElement.style.color = '#fafafa';
 		}
         return html`<main>
-            ${() => {
-                switch (this.route) {
-                    case "/":
-                        return this.home.node;
-                    default: 
-                        //we have a list
-                        return this.listView.node;
-
-                }
-            }}
-            <footer>Built with <a href="https://github.com/amirgamil/poseidon">Poseidon</a> by <a href="https://amirbolous.com/">Amir</a></footer>
+            <div class="content">
+                ${() => {
+                    switch (this.route) {
+                        case "/":
+                        case "/about":
+                            return this.home.node;
+                        default: 
+                            //we have a list
+                            return this.listView.node;
+                    }
+                }}
+            </div>
+            <footer>Built with <a class = "link" href="https://github.com/amirgamil/poseidon">Poseidon</a> by <a class = "link" href="https://amirbolous.com/">Amir</a></footer>
         </main>` 
     }
 }
