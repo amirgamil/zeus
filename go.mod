@@ -1,4 +1,4 @@
-module github.com/amirgamil/lists
+module github.com/amirgamil/zeus
 
 go 1.14
 

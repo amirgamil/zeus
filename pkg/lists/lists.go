@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -29,8 +30,9 @@ type List struct {
 
 //helper struct used to represent the data in a request to create a new list
 type createListRequest struct {
-	Rule     string `json:"rule"`
-	Password string `json:"password"`
+	Rule     string   `json:"rule"`
+	Password string   `json:"password"`
+	Data     []string `json:"data"`
 }
 
 type errorResponse struct {
@@ -56,9 +58,10 @@ func ensureDataExists() {
 			return
 		}
 		f.Close()
+		cache = make(map[string]*List)
 		//write empty key "" to file to prevent errors with home page and initially populate
 		//database
-		addNewList("", "")
+		addNewList("", "", make([]string, 0))
 	} else {
 		defer jsonFile.Close()
 	}
@@ -104,9 +107,14 @@ func writeCacheToDisk() {
 	check(err)
 }
 
-func addNewList(key string, rule string) {
+func addNewList(key string, rule string, data []string) {
+	if len(data) != 0 {
+		for i := 0; i < len(data); i++ {
+			data[i] = getMarkdownFromString(data[i])
+		}
+	}
 	//create new list
-	newList := List{Key: key, Data: make([]string, 0), Rule: rule}
+	newList := List{Key: key, Data: data, Rule: rule}
 	//TODO: eventually hash the key first and map key to hashed string
 	cache[key] = &newList
 	fmt.Println(cache[key])
@@ -126,8 +134,11 @@ func createList(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	} else if keyExists(listKey) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+	} else if strings.Contains(request.Password, "<") || strings.Contains(listKey, "<") {
+		//check for potential dangerous HTML trying to be injected
+		w.WriteHeader(http.StatusBadRequest)
 	} else {
-		addNewList(listKey, request.Rule)
+		addNewList(listKey, request.Rule, request.Data)
 	}
 }
 
@@ -154,7 +165,6 @@ func parseMarkdown(w http.ResponseWriter, r *http.Request) {
 func getList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	listKey := vars["listName"]
-	if cache[listKey].
 	//TODO: map to hash
 	json.NewEncoder(w).Encode(cache[listKey])
 }

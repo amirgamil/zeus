@@ -1,0 +1,246 @@
+html, body {
+    margin: 0;
+    min-height: 100vh;
+    background: rgb(0,0,3);
+    --fgHover: rgb(32, 32, 32, 0.1);
+    --fg: #222;
+    --bg: #eeecec;
+    font-weight: 300;
+    font-family: 'Fira Sans', sans-serif;
+
+    background: var(--bg);
+    color: var(--fg);
+}
+
+
+body.dark {
+    --fg: #fafafa;
+    --fgHover: rgb(250,250,250, 0.1);
+    --bg: #222;
+}
+
+.content {
+    flex: 1 0 auto;
+}
+
+main {
+    max-width: 800px;
+    min-height: 100vh;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - 2em);
+}
+
+.rowWrapper {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.title {
+    font-weight: 500;
+    font-size: 2.5em;
+    flex-grow: 1;
+}
+
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+.userList {
+    width: 100%;
+}
+
+.unitList {
+    margin: 10px 5px 10px 5px;
+    display: flex;
+    align-items: center;
+}
+
+.listData {
+    flex-grow: 1;
+}
+
+.close {
+    font-size: 1em;
+}
+
+.colWrapper {
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+h2 {
+    margin: 0;
+}
+
+footer {
+    width: 100%;
+    flex-shrink: 0;
+    padding: 8px 2px 8px 2px;
+    text-align: center; 
+    font-size: 1em;
+    color: var(--fg);
+}
+
+.extraPadding {
+    padding: 5px 5px 6em 5px;
+}
+
+.preview {
+    opacity: 0.4;
+    margin: 0 0 0 5px !important;
+    padding: 0 0 10px 0;
+}
+
+.littlePadding {
+    padding: 5px;
+}
+
+.spaceTopBottom {
+    margin: 10px 0 10px 0;    
+}
+
+.navHeader {
+    margin: 20px 2px 10px 2px;
+}
+
+.highlighted {
+    background: var(--fgHover);
+}
+
+
+.p-heights {
+    background-color: red;
+}
+
+input:focus, textarea:focus, .p-heights:focus{
+    background: var(--fgHover);
+}
+
+input, textarea, .p-heights {
+    box-sizing: border-box;
+    border: none;
+    margin: 10px 0 10px 0;
+    border-radius: 5px;
+    width: 100%;
+    color: var(--fg);
+    font-size: 1em;
+    min-height: 2em;
+    line-height: 1.5em;
+    font-family: 'Inconsolata', monospace;
+    background: transparent;
+    outline: none;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+input {
+    padding: 5px;
+}
+
+textarea {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    overflow: hidden;
+    resize: none;
+    position: absolute;
+}
+
+.p-heights {
+    visibility: hidden;
+}
+
+.p-heights.endline {
+    padding-bottom: 2.25em;
+}
+
+.markdown {
+    width: 100%;
+    position: relative;
+    display: flex;
+}
+
+.nav {
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.nav:hover {
+    text-decoration: underline;
+}
+
+.link {
+    color: var(--fg);
+    text-decoration: underline;
+}
+
+.link:hover{
+    cursor: grab;
+}
+
+button {
+    background: none;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    width: fit-content;
+    color: var(--fg); 
+    font-size: 1.5em;
+}
+
+button:hover, button:focus {
+    cursor: grab;
+    background: var(--fgHover);
+}
+
+.icon::after {
+    position: absolute;
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 5px;
+    background: var(--fgHover);
+    border-radius: 6px;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+    opacity: 0;
+    transform: translate(-90%, 35px);
+    transition: opacity .2s, transform .2s;
+    transition-delay: 0s;
+}
+
+.icon:hover::after {
+    transition-delay: 0.5s;
+    opacity: 1 !important;
+}
+
+a {
+    text-decoration: underline;
+    color: var(--fg);
+}
+
+::selection, ::-moz-selection  {
+    color: var(--fg) !important;
+    background: blue;
+}
+
+.about {
+    flex-grow: 0.05;
+}
+
+.markdown {
+    margin-top: 15px;
+}
+
+/*to make sure preview shows up similar to the textarea*/
+p, h1, h2, h3, h4, li{
+    margin: 0;
+    padding: 0;
+}
