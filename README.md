@@ -6,7 +6,7 @@ Create, store, and share lists like a boss.
 ![preview](docs/preview.png)
 
 ### About
-I store a lot of lists. Most of them are scattered, inaccessible, and hard to share. Zeus is an attempt at solving this. It allows me to create custom lists composed of markdown elements via a defined template. This means for more complex lists, adding new elements is very fast since Zeus will preload the markdown template. It tries to move lists away from just text line by line in some notepad to a more custom-tailored tool, which provides some structure while not comrpomising on how I want to store each item in a list.
+I store a lot of lists. Most of them are scattered, inaccessible, and hard to share. Zeus is an attempt at solving this. It allows me to create custom lists composed of markdown elements via a defined template. This means for more complex lists, adding new elements is very fast since Zeus will preload the markdown template. It tries to move lists away from just text line by line in some notepad to a more custom-tailored tool, which provides some structure while not compromising on how I want to store each item in a list.
 
 Zeus comes with a minimalist, notebook style UI, and of course dark mode. It also lets you import a list directly from markdown text (which is how I kept most of lists in the past). 
 
