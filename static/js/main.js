@@ -160,7 +160,7 @@ class ListView extends Component {
                             this.loading = "This list is still waiting to get married to some data";
                             this.render();
                         });
-        this.isAuthenticated = window.localStorage.getItem("authenticated");
+        this.isAuthenticated = window.localStorage.getItem("authenticated") === "true";
     }
 
     addListItem() {
@@ -179,8 +179,9 @@ class ListView extends Component {
                 return Promise.reject(response);
             }
         }).then(data => {
+            console.log(data);
             //add new element to our store once guaranteed it has been updated in the database
-            this.dataSource.add(data);
+            this.dataSource.setStore(data);
           }).catch(ex => {
             this.errorOccurred = getErrorMessageFromCode(ex.status);
             console.log("Error adding new item: ", this.errorOccurred, " ", ex);
@@ -305,18 +306,18 @@ class HomePage extends Component {
         this.handleInputDown = this.handleInputDown.bind(this);
         this.importedMarkdown = "";
         this.handleKeyDown = (evt) => { 
-            this.handleInputDown("text", evt)
+            const val = DOMPurify.sanitize(evt.target.value);
+            this.handleInputDown("text", val)
             this.shouldUpdatePreview = true;
             //TODO: if this is slow on mobile, change implementation to only one render
             //markdown rendering uses a state variable this.newItem, however this component uses atomic data
-            //so we need to set it before rendering the markdown
-            this.newItem = evt.target.value;
+            this.newItem = val;
             //since we bind the atomic data, this will emit an event to re-render
             //so we pass in true to `shouldNotRender` to avoid calling render twice for efficiency/speed
             this.startPreview(); 
         };
-        this.handleIDInput = (evt) => this.handleInputDown("id", evt);
-        this.handlePassword = (evt) => this.handleInputDown("password", evt);
+        this.handleIDInput = (evt) => this.handleInputDown("id", evt.target.value);
+        this.handlePassword = (evt) => this.handleInputDown("password", evt.target.value);
         this.createList = this.createList.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.handleImportedMarkdown = this.handleImportedMarkdown.bind(this);
@@ -327,8 +328,8 @@ class HomePage extends Component {
     }
 
 
-    handleInputDown(element, evt) {
-        this.data.update({[element]: evt.target.value});
+    handleInputDown(element, val) {
+        this.data.update({[element]: val});
     }
 
     handleImportedMarkdown(evt) {
@@ -338,7 +339,7 @@ class HomePage extends Component {
 
     //imports a markdown list where last item represents format
     importList() {
-        var elements = this.importedMarkdown.split("-");
+        var elements = DOMPurify.sanitize(this.importedMarkdown).split("- ");
         const list = []
         elements.forEach(el => {
             const val = el.trim();
@@ -354,12 +355,33 @@ class HomePage extends Component {
     //main logic for creating a list    
     createList() {
         var listData = []
-        //don't do anything if we have an empty id or if not authenticated
+        //first authenticate
+        if (window.localStorage.getItem("authenticated") !== "true") {
+            fetch("/authenticate", {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(this.data.get("password"))
+            }).then(response => {
+                if (response.ok) {
+                    window.localStorage.setItem("authenticated", "true");
+                } else {
+                    window.localStorage.getItem("authenticated", "false");
+                    return Promise.reject(response);
+                }
+            }).catch(e => {
+                this.errorOccurred = getErrorMessageFromCode(e.status);
+                this.render();
+                return;
+            })
+        }
+        //don't do anything if we have an empty id 
         if (!this.data.get("id")) return;
         if (this.importedMarkdown) {
             listData = this.importList();
         }
-        //show modal and do some intermediate steps
         //create key in database
         fetch("/createList/" + this.data.get("id"), {
             method: 'POST',
@@ -374,14 +396,10 @@ class HomePage extends Component {
             })
         }).then(res => {
             if (res.ok) {
-                //sanitize fields which get executed (markdown preview) which means we secure against risk of cross-site scripting 
-                //attacks which might alter this so we can safely do this
-                window.localStorage.setItem("authenticated", "true");
                 //change the location of the window as opposed to just navigating ?ith the 
                 //router since we need the parent component to re-render not just this one
                 window.location = "/" + this.data.get("id");
             } else {
-                window.localStorage.setItem("authenticated", "false");
                 return Promise.reject(res);
             }
         })
@@ -474,7 +492,7 @@ class HomePage extends Component {
              ${markdown(this.preview)}
              <div class="markdown">
                 <textarea oninput=${this.handleImportedMarkdown} class="littlePadding" placeholder="Or paste a markdown list to convert. Each list item should start with a -" value=${this.importedMarkdown}></textarea>
-                <pre class="p-heights ${this.importedMarkdown.endsWith("\n") ? 'endline' : ''}">${this.importedMarkdown}</pre>
+                <pre class="p-heights littlePadding ${this.importedMarkdown.endsWith("\n") ? 'endline' : ''}">${this.importedMarkdown}</pre>
              </div>
 
             ${this.errorOccurred !== "" ? html`<div class = "modal"> 

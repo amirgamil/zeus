@@ -129,10 +129,7 @@ func createList(w http.ResponseWriter, r *http.Request) {
 	listKey := vars["listName"]
 	w.Header().Set("Content-Type", "application/json")
 	//check for valid password, otherwise return an error
-	if !isValidPassword(request.Password) {
-		//return unauthorized header
-		w.WriteHeader(http.StatusUnauthorized)
-	} else if keyExists(listKey) {
+	if keyExists(listKey) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else if strings.Contains(request.Password, "<") || strings.Contains(listKey, "<") {
 		//check for potential dangerous HTML trying to be injected
@@ -171,7 +168,8 @@ func getList(w http.ResponseWriter, r *http.Request) {
 
 func (list *List) addItemToList(item string) {
 	fmt.Println(list.Data)
-	list.Data = append(list.Data, item)
+	//prepend to display items from new to old
+	list.Data = append([]string{item}, list.Data...)
 }
 
 func updateList(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +189,7 @@ func updateList(w http.ResponseWriter, r *http.Request) {
 		writeCacheToDisk()
 		//return new appended data - client will add to the store
 		//prevents us having to constantly reload the entire list, faster/more efficient this way
-		json.NewEncoder(w).Encode(newListItem)
+		json.NewEncoder(w).Encode(list.Data)
 	}
 }
 
@@ -202,8 +200,21 @@ func deleteLastItem(w http.ResponseWriter, r *http.Request) {
 	if !keyExists(listKey) || !keyExists(listKey) || len(list.Data) == 0 {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
-		list.Data = list.Data[:len(list.Data)-1]
+		list.Data = list.Data[1:len(list.Data)]
 		json.NewEncoder(w).Encode(list.Data)
+	}
+}
+
+func authenticate(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		Password string `json:"password"`
+	}
+	var request Request
+	json.NewDecoder(r.Body).Decode(&request)
+	if isValidPassword(request.Password) {
+		w.WriteHeader(http.StatusAccepted)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
@@ -238,6 +249,7 @@ func Start() {
 	r.Methods("GET").Path("/getList/{listName}").HandlerFunc(getList)
 	r.Methods("POST").Path("/updateList/{listName}").HandlerFunc(updateList)
 	r.Methods("GET").Path("/deleteLastItem/{listName}").HandlerFunc(deleteLastItem)
+	r.Methods("POST").Path("/authenticate").HandlerFunc(authenticate)
 	r.Methods("POST").Path("/data").HandlerFunc(parseMarkdown)
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	//match all other routes here, routing will be handled on the client side

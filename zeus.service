@@ -20,7 +20,7 @@ ExecStartPre=/bin/chown syslog:adm /var/log/zeus
 ExecStartPre=/bin/chmod 755 /var/log/zeus
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=athena
+SyslogIdentifier=zeus
 
 [Install]
 WantedBy=multi-user.target
