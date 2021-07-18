@@ -2,6 +2,8 @@
 ### Order from chaos
 Create, store, and share lists like a boss.
 
+View all of [my lists](https://zeus.amirbolous.com/directory)
+
 ![home](docs/homelight.png)
 ![preview](docs/preview.png)
 
