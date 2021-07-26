@@ -166,6 +166,7 @@ textarea {
 
 .markdown {
     width: 100%;
+    margin-top: 15px;
     position: relative;
     display: flex;
 }
@@ -237,9 +238,6 @@ a {
     flex-grow: 0.05;
 }
 
-.markdown {
-    margin-top: 15px;
-}
 
 /*to make sure preview shows up similar to the textarea*/
 p, h1, h2, h3, h4, li{

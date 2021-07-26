@@ -153,8 +153,7 @@ class ListView extends Component {
                             const {key, rule} = data;
                             //replace in - in title with spaces to look pretty
                             this.key = key.replace("-", " ");
-                            this.newItem = rule;
-                            console.log(rule);
+                            this.newItem = rule ? rule : "Text";
                             this.bind(this.dataSource);
                         }).catch(ex => {
                             this.loading = "This list is still waiting to get married to some data";
@@ -166,7 +165,7 @@ class ListView extends Component {
     addListItem() {
         if (!this.isAuthenticated) return;
         const sanitized = DOMPurify.sanitize(this.newItem);
-        fetch("/updateList/" + this.key, {
+        fetch("/updateList/" + this.key.replace(" ", "-"), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -232,7 +231,7 @@ class ListView extends Component {
 
     deleteLastItem() {
         if (!this.isAuthenticated) return;
-        fetch("/deleteLastItem/" + this.key)
+        fetch("/deleteLastItem/" + this.key.replace(" ", "-"))
             .then(response => {
                 if (response.ok) {
                     return response.json();
