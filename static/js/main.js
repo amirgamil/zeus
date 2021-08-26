@@ -138,7 +138,8 @@ function initalizeMarkdownPreviewVars() {
 class ListView extends Component {
     init(route) {
         this.dataSource = new Store();
-        this.list = new CreatedList(this.dataSource)
+        this.list = new CreatedList(this.dataSource);
+        this.loaded = false;
         this.newItem = "";
         //TODO: handle error occurred modal? any way to do this without repeating code?
         this.errorOccurred = "";
@@ -154,6 +155,7 @@ class ListView extends Component {
                             //replace in - in title with spaces to look pretty
                             this.key = key.replace("-", " ");
                             this.newItem = rule ? rule : "Text";
+                            this.loaded = true;
                             this.bind(this.dataSource);
                         }).catch(ex => {
                             this.loading = "This list is still waiting to get married to some data";
@@ -248,8 +250,7 @@ class ListView extends Component {
     }
 
     create() {
-        if (!this.newItem) {
-            console.log("hello");
+        if (!this.loaded) {
             return html`<p style="margin-top: 20px;">${this.loading}</p>`;
         }
         return html`<div class="colWrapper">
