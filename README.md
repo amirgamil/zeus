@@ -17,7 +17,7 @@ There are a couple of technical noteworthy components of Zeus to mention. The ba
 
 The frontend is written in [Poseidon](https://github.com/amirgamil/poseidon), composed of [home page](https://github.com/amirgamil/zeus/blob/master/static/js/main.js#L295) where you can add new lists (this is one component) and a [page](https://github.com/amirgamil/zeus/blob/master/static/js/main.js#L138) to dynamically load / edit a list, (which is the second large component). Most of routing is done on the client side which interacts with the database via a REST-like API - this ends up being a wrapper [component](https://github.com/amirgamil/zeus/blob/master/static/js/main.js#L489) which renders one of the above two components based on the relevant route.
 
-Since we render markdown previews based on user-input, I sanitize any HTML before rendering it to secure the website against any risk of cross-site scripting (XSS) attacks which could inject and execute HTML code via markdown.
+Since we render markdown previews based on user-input, I sanitize any HTML before rendering it to secure the website against any risk of cross-site scripting (XSS) attacks which could inject and execute Javascript via markdown.
 
 The database is a serialized Go hash map, which allows us for efficient, fast look-ups with minimum overhead for setting things up, and relatively efficiently encoded data (so small file sizes). I encode and decode using Go's excellent provided `gop` package.
 
